@@ -1,7 +1,7 @@
 package model;
 
 import java.math.BigDecimal;
-//Record to carry the info of employee needed by payroll and reporting snapshot from the database 
+//Record to carry the info of employee needed by payroll and reporting from the database 
 
 public record EmployeeInfo(
         String id,
