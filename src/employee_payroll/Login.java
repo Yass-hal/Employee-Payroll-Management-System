@@ -5,10 +5,10 @@
  */
 package employee_payroll;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import DAO.DatabaseHelper;
+import DAO.DatabaseSession;
+import DAO.UserDao;
+import logic.LoginService;
+
 import java.awt.Dimension;
 import java.awt.Toolkit;
 import javax.swing.JOptionPane;
@@ -21,11 +21,10 @@ import java.util.GregorianCalendar;
  * @author ZI Zohir
  */
 public class Login extends javax.swing.JFrame {
+    private DatabaseSession database;
+    private LoginService loginService;
 
-    Connection con = null;
-    ResultSet rs = null;
-    PreparedStatement pst = null;
-    
+
     /**
      * Creates new form Login
      */
@@ -35,7 +34,8 @@ public class Login extends javax.swing.JFrame {
         Dimension size = toolkit.getScreenSize();
         setLocation(size.width/2 - getWidth()/2, size.height/2 - getHeight()/2);
                 
-        con = DatabaseHelper.getConnection();
+        database = new DatabaseSession();
+        loginService = new LoginService(new UserDao(database));
         currentDate();
     }
 
@@ -158,41 +158,22 @@ public class Login extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnLoginActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLoginActionPerformed
-        String sql = "select id, username, password, division from Users where (username=? and password =? and division =?)";
         try {
-            int count = 0;
-            pst = con.prepareStatement(sql);
-            
-            pst.setString(1, txtusername.getText());
-            pst.setString(2, txtpass.getText());
-            pst.setString(3, cmbdiv.getSelectedItem().toString());
-            
-            rs = pst.executeQuery();
-            while (rs.next()) {
-                int id = rs.getInt(1);
-                Emp.empId = id;
-                String userName = rs.getString("userName");
-                Emp.empName = userName;
-                count = count + 1;
-            }
-            String access = (cmbdiv.getSelectedItem().toString());
-            
-            if (access == "Admin") {
-                if (count == 1) {
-                    JOptionPane.showMessageDialog(null, "Success");
-                    MainMenu m = new MainMenu();
-                    m.setVisible(true);
-                    this.dispose();
-                }else{
-                    JOptionPane.showMessageDialog(null, "Username and Password is not valid");
-                }
+            int count = loginService.login(txtusername.getText(), txtpass.getText(),
+                    cmbdiv.getSelectedItem().toString());
+            if (count == 1) {
+                JOptionPane.showMessageDialog(null, "Success");
+                MainMenu m = new MainMenu();
+                m.setVisible(true);
+                this.dispose();
+            } else if (count >= 0) {
+                JOptionPane.showMessageDialog(null, "Username and Password is not valid");
             }
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, e);
-        }finally{
+        } finally {
             try {
-                rs.close();
-                pst.close();
+                database.closeResults();
             } catch (Exception e) {
                 e.printStackTrace();
             }

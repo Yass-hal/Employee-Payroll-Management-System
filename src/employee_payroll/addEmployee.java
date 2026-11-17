@@ -5,17 +5,14 @@
  */
 package employee_payroll;
 
-import DAO.DatabaseHelper;
+import DAO.DatabaseSession;
+import DAO.EmployeeDao;
+import model.Employee;
+
 import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.sql.PreparedStatement;
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.ResultSet;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -26,21 +23,19 @@ import javax.swing.filechooser.FileNameExtensionFilter;
  * @author ZI Zohir
  */
 public class addEmployee extends javax.swing.JFrame {
+    private DatabaseSession database;
+    private EmployeeDao employeeDao;
+
 
     private String gender;
     String imagePath = null;
-    Connection con = null;
-    CallableStatement csmt = null;
-    ResultSet rs = null;
-    PreparedStatement ps = null;
-    
-    
     /**
      * Creates new form addEmployee
      */
     public addEmployee() {
         initComponents();
-        con = DatabaseHelper.getConnection();
+        database = new DatabaseSession();
+        employeeDao = new EmployeeDao(database);
         Toolkit toolkit = getToolkit();
         Dimension size = toolkit.getScreenSize();
         setLocation(size.width/2 - getWidth()/2, size.height/2 - getHeight()/2);
@@ -476,46 +471,32 @@ public class addEmployee extends javax.swing.JFrame {
 
     private void btnaddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnaddActionPerformed
         try {
-            String sql = "insert into employee"
-                    +"(emp_id, f_name, l_name, gender, dob, email, contact,"
-                    +"p_add, per_add, house, pcode, dept, designation, date_hire,"
-                    +"salary, job_t, status,image) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-            ps = con.prepareStatement(sql);
-            ps.setString(1, txtid.getText());
-            ps.setString(2, txtfn.getText());
-            ps.setString(3, txtln.getText());
-            ps.setString(4, gender);
-            ps.setString(5, txtdob.getText());
-            ps.setString(6, txtemail.getText());
-            ps.setString(7, txtcontact.getText());
-            ps.setString(8, txtpa.getText());
-            ps.setString(9, txtpera.getText());
-            ps.setString(10, txtapt.getText());
-            ps.setString(11, txtpc.getText());
-            ps.setString(12, txtdep.getText());
-            ps.setString(13, txtdes.getText());
-            ps.setString(14, txthire.getText());
-            ps.setString(15, txtbsal.getText());
-            ps.setString(16, txtjob.getText());
-            ps.setString(17, txtsta.getText());            
-            InputStream imag = new FileInputStream(new File(imagePath));
-            ps.setBlob(18, imag);
-            
-//            if (ps.executeUpdate() != 0) {
-//                JOptionPane.showMessageDialog(null, "Record Added");
-//            }else{
-//                JOptionPane.showMessageDialog(null, "Something went wrong");
-//            }
-
-            ps.execute();
+            Employee employee = new Employee();
+            employee.setId(txtid.getText());
+            employee.setFirstName(txtfn.getText());
+            employee.setLastName(txtln.getText());
+            employee.setGender(gender);
+            employee.setDateOfBirth(txtdob.getText());
+            employee.setEmail(txtemail.getText());
+            employee.setContact(txtcontact.getText());
+            employee.setPresentAddress(txtpa.getText());
+            employee.setPermanentAddress(txtpera.getText());
+            employee.setHouse(txtapt.getText());
+            employee.setPostCode(txtpc.getText());
+            employee.setDepartment(txtdep.getText());
+            employee.setDesignation(txtdes.getText());
+            employee.setDateHired(txthire.getText());
+            employee.setSalary(txtbsal.getText());
+            employee.setJobTitle(txtjob.getText());
+            employee.setStatus(txtsta.getText());
+            employeeDao.add(employee, imagePath);
             JOptionPane.showMessageDialog(null, "Data saved successfully");
             clear();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, e);
         }finally{
             try {
-                rs.close();
-                ps.close();
+                database.closeResults();
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(null, e);
             }
@@ -524,63 +505,60 @@ public class addEmployee extends javax.swing.JFrame {
 
     private void txtsearchKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtsearchKeyReleased
         try {
-            String sql = "select * from employee where emp_id=?";
-             ps = con.prepareStatement(sql);
-             ps.setString(1, txtsearch.getText());
-             rs=ps.executeQuery();
-             if (rs.next()){
-             String add1 = rs.getString("emp_id");
+            Employee employee = employeeDao.findById(txtsearch.getText());
+            if (employee != null) {
+             String add1 = employee.getId();
              txtid.setText(add1);
              
-             String add2 = rs.getString("f_name");
+             String add2 = employee.getFirstName();
              txtfn.setText(add2);
              
-             String add3 = rs.getString("l_name");
+             String add3 = employee.getLastName();
              txtln.setText(add3);
              
-             String add4 = rs.getString("gender");
+             String add4 = employee.getGender();
              txtln.setText(add4);
              
-             String add5 = rs.getString("dob");
+             String add5 = employee.getDateOfBirth();
              txtdob.setText(add5);
              
-             String add6 = rs.getString("email");
+             String add6 = employee.getEmail();
              txtemail.setText(add6);
              
-             String add7 = rs.getString("contact");
+             String add7 = employee.getContact();
              txtcontact.setText(add7);
              
-             String add8 = rs.getString("p_add");
+             String add8 = employee.getPresentAddress();
              txtpa.setText(add8);
              
-             String add9 = rs.getString("per_add");
+             String add9 = employee.getPermanentAddress();
              txtpera.setText(add9);
              
-             String add10 = rs.getString("house");
+             String add10 = employee.getHouse();
              txtapt.setText(add10);
              
-             String add11 = rs.getString("pcode");
+             String add11 = employee.getPostCode();
              txtpc.setText(add11);
              
-             String add12 = rs.getString("dept");
+             String add12 = employee.getDepartment();
              txtdep.setText(add12);
              
-             String add13 = rs.getString("designation");
+             String add13 = employee.getDesignation();
              txtdes.setText(add13);
              
-             String add14 = rs.getString("date_hire");
+             String add14 = employee.getDateHired();
              txthire.setText(add14);
              
-             String add15 = rs.getString("salary");
+             String add15 = employee.getSalary();
              txtbsal.setText(add15);
              
-             String add16 = rs.getString("job_t");
+             String add16 = employee.getJobTitle();
              txtjob.setText(add16);
              
-             String add17 = rs.getString("status");
+             String add17 = employee.getStatus();
              txtsta.setText(add17);
              
-             String gn = rs.getString("Gender");
+             String gn = employee.getGender();
                 if (gn.equals("Male")) {
                     rmale.setSelected(true);
                     rfemale.setSelected(false);
@@ -589,15 +567,14 @@ public class addEmployee extends javax.swing.JFrame {
                     rfemale.setSelected(true);
                 }
              
-             byte [] image = rs.getBytes("image");
+             byte [] image = employee.getImage();
              ImageIcon imgIcon = new ImageIcon (new ImageIcon(image).getImage().getScaledInstance(limg.getWidth(), limg.getHeight(), Image.SCALE_SMOOTH));
              limg.setIcon(imgIcon);}
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, e);
         }finally{
             try {
-                rs.close();
-                ps.close();
+                database.closeResults();
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(null, e);
             }
@@ -612,18 +589,14 @@ public class addEmployee extends javax.swing.JFrame {
 
     private void btnDeleteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDeleteActionPerformed
         try {
-            String sql = "delete from employee where emp_id = ?";
-            ps = con.prepareStatement(sql);
-            ps.setString(1, txtid.getText());
-            ps.execute();
+            employeeDao.delete(txtid.getText());
             JOptionPane.showMessageDialog(null, "Record Deleted");
             clear();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, e);
         }finally{
             try {
-                rs.close();
-                ps.close();
+                database.closeResults();
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(null, e);
             }
@@ -650,13 +623,24 @@ public class addEmployee extends javax.swing.JFrame {
             String val16 = txtsta.getText();
             
             
-            String sql = "update employee set emp_id ='"+val1+"',f_name ='"+val2+"',"
-                    + "l_name = '"+val3+"',dob='"+val4+"',email='"+val5+"',contact='"+val6+"',"
-                    +"p_add='"+val7+"',per_add='"+val8+"',house='"+val9+"',pcode='"+val10+"',"
-                    +"dept='"+val11+"',designation='"+val12+"',date_hire='"+val13+"',salary='"+val14+"',"
-                    +"job_t='"+val15+"',status='"+val16+"' where emp_id='"+val1+"'  ";
-            ps = con.prepareStatement(sql);
-            ps.execute();
+            Employee employee = new Employee();
+            employee.setId(val1);
+            employee.setFirstName(val2);
+            employee.setLastName(val3);
+            employee.setDateOfBirth(val4);
+            employee.setEmail(val5);
+            employee.setContact(val6);
+            employee.setPresentAddress(val7);
+            employee.setPermanentAddress(val8);
+            employee.setHouse(val9);
+            employee.setPostCode(val10);
+            employee.setDepartment(val11);
+            employee.setDesignation(val12);
+            employee.setDateHired(val13);
+            employee.setSalary(val14);
+            employee.setJobTitle(val15);
+            employee.setStatus(val16);
+            employeeDao.update(employee);
             JOptionPane.showMessageDialog(null, "Record Updated");
             clear();
         } catch (Exception e) {

@@ -5,14 +5,16 @@
  */
 package employee_payroll;
 
-import DAO.DatabaseHelper;
+import DAO.DatabaseSession;
+import DAO.EmployeeDao;
+import model.Employee;
+import model.AllowanceData;
+import DAO.AllowanceDao;
+import logic.PayrollCalculator;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Toolkit;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.Vector;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
@@ -22,19 +24,21 @@ import javax.swing.table.DefaultTableModel;
  * @author ZI Zohir
  */
 public class Allowance extends javax.swing.JFrame {
+    private DatabaseSession database;
+    private EmployeeDao employeeDao;
+    private AllowanceDao allowanceDao;
+    private final PayrollCalculator calculator = new PayrollCalculator();
 
-    Connection con = null;
-    ResultSet rs = null;
-    PreparedStatement ps = null;
+
     DefaultTableModel dtm = new DefaultTableModel();
-    Statement stm;
-
     /**
      * Creates new form Allowance
      */
     public Allowance() {
         initComponents();
-        con = DatabaseHelper.getConnection();
+        database = new DatabaseSession();
+        employeeDao = new EmployeeDao(database);
+        allowanceDao = new AllowanceDao(database);
         Toolkit toolkit = getToolkit();
         Dimension size = toolkit.getScreenSize();
         setLocation(size.width / 2 - getWidth() / 2, size.height / 2 - getHeight() / 2);
@@ -381,27 +385,24 @@ public class Allowance extends javax.swing.JFrame {
 
     private void txtsearchKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtsearchKeyReleased
         try {
-            String sql = "select * from employee where emp_id=?";
-            ps = con.prepareStatement(sql);
-            ps.setString(1, txtsearch.getText());
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                String add1 = rs.getString("emp_id");
+            Employee employee = employeeDao.findById(txtsearch.getText());
+            if (employee != null) {
+                String add1 = employee.getId();
                 txtid.setText(add1);
 
-                String add2 = rs.getString("f_name");
+                String add2 = employee.getFirstName();
                 txtfn.setText(add2);
 
-                String add3 = rs.getString("l_name");
+                String add3 = employee.getLastName();
                 txtln.setText(add3);
 
-                String add5 = rs.getString("dob");
+                String add5 = employee.getDateOfBirth();
                 txtdob.setText(add5);
 
-                String add15 = rs.getString("salary");
+                String add15 = employee.getSalary();
                 txtsal.setText(add15);
 
-                String add12 = rs.getString("dept");
+                String add12 = employee.getDepartment();
                 txtdept.setText(add12);
             }
 
@@ -409,8 +410,7 @@ public class Allowance extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(null, e);
         } finally {
             try {
-                rs.close();
-                ps.close();
+                database.closeResults();
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(null, e);
             }
@@ -421,53 +421,45 @@ public class Allowance extends javax.swing.JFrame {
         int salary = Integer.parseInt(txtsal.getText());
         int overtime = Integer.parseInt(txtOvertime.getText());
 
-        double eight = 8;
-        double days = 25;
         double dbop = 0;
-        double overtimeRate = 1.5;
         //calculate the total hours of overtime
-        double total_overtime = overtime * overtimeRate;
+        double total_overtime = calculator.overtimeHours(overtime);
         String x = String.valueOf(total_overtime);
         txtTo.setText(x);
         //calculate overall overtime
-        dbop = salary / days / eight;
+        dbop = calculator.hourlyRate(salary);
         String s = String.valueOf(dbop);
         txtRate.setText(s);
 
         int med = Integer.parseInt(txtMed.getText());
         int bonus = Integer.parseInt(txtBonus.getText());
         int other = Integer.parseInt(txtOther.getText());
-        int f = med + bonus + other;
-        double calc = total_overtime * dbop + f;
+        double calc = calculator.totalAllowance(total_overtime, dbop, med, bonus, other);
         String t = String.valueOf(calc);
         lblTotal.setText(t);
     }//GEN-LAST:event_btnCalActionPerformed
 
     private void btnSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveActionPerformed
         try {
-             String sql = "insert into allowance (emp_id,f_name,l_name,"
-                    + "salary,medical,bonus,other,overtime,rate,total_allowance)"
-                    + "values(?,?,?,?,?,?,?,?,?,?)";
-            ps = con.prepareStatement(sql);
-            ps.setString(1, txtid.getText());
-            ps.setString(2, txtfn.getText());
-            ps.setString(3, txtln.getText());
-            ps.setString(4, txtsal.getText());
-            ps.setString(5, txtMed.getText());
-            ps.setString(6, txtBonus.getText());
-            ps.setString(7, txtOther.getText());
-            ps.setString(8, txtOvertime.getText());
-            ps.setString(9, txtRate.getText());
-            ps.setString(10, lblTotal.getText());
-            ps.execute();
+            AllowanceData allowance = new AllowanceData();
+            allowance.setEmployeeId(txtid.getText());
+            allowance.setFirstName(txtfn.getText());
+            allowance.setLastName(txtln.getText());
+            allowance.setSalary(txtsal.getText());
+            allowance.setMedical(txtMed.getText());
+            allowance.setBonus(txtBonus.getText());
+            allowance.setOther(txtOther.getText());
+            allowance.setOvertime(txtOvertime.getText());
+            allowance.setRate(txtRate.getText());
+            allowance.setTotal(lblTotal.getText());
+            allowanceDao.save(allowance);
             Show();
             JOptionPane.showMessageDialog(null, "Allowance Added");
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, e);
         } finally {
             try {
-                rs.close();
-                ps.close();
+                database.closeResults();
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(null, e);
             }
@@ -502,8 +494,6 @@ public class Allowance extends javax.swing.JFrame {
 
     public void Show(){
         try {
-            stm = con.createStatement();
-            rs = stm.executeQuery("SELECT * FROM allowance");
             Vector<String> header = new Vector<String>();
             header.add("emp_id");
             header.add("f_name");
@@ -516,18 +506,18 @@ public class Allowance extends javax.swing.JFrame {
             header.add("rate");
             header.add("total_allowance");
             Vector<Vector<Object>> data = new Vector<Vector<Object>>();
-            while (rs.next()) {
+            for (AllowanceData allowance : allowanceDao.findAll()) {
                 Vector<Object> row = new Vector<Object>();
-                row.add(rs.getString("emp_id"));
-                row.add(rs.getString("f_name"));
-                row.add(rs.getString("l_name"));
-                row.add(rs.getString("salary"));
-                row.add(rs.getString("medical"));
-                row.add(rs.getString("bonus"));
-                row.add(rs.getString("other"));
-                row.add(rs.getString("overtime"));
-                row.add(rs.getString("rate"));
-                row.add(rs.getString("total_allowance"));
+                row.add(allowance.getEmployeeId());
+                row.add(allowance.getFirstName());
+                row.add(allowance.getLastName());
+                row.add(allowance.getSalary());
+                row.add(allowance.getMedical());
+                row.add(allowance.getBonus());
+                row.add(allowance.getOther());
+                row.add(allowance.getOvertime());
+                row.add(allowance.getRate());
+                row.add(allowance.getTotal());
                 data.add(row);//add each result/row to data Vector
             }//loop
             dtm.setDataVector(data, header);

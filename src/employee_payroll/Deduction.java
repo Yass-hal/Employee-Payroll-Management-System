@@ -5,12 +5,15 @@
  */
 package employee_payroll;
 
-import DAO.DatabaseHelper;
+import DAO.DatabaseSession;
+import DAO.EmployeeDao;
+import model.Employee;
+import model.DeductionData;
+import DAO.DeductionDao;
+import logic.PayrollCalculator;
+
 import java.awt.Dimension;
 import java.awt.Toolkit;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import javax.swing.JOptionPane;
 
 /**
@@ -18,15 +21,19 @@ import javax.swing.JOptionPane;
  * @author ZI Zohir
  */
 public class Deduction extends javax.swing.JFrame {
-    Connection con = null;
-    ResultSet rs = null;
-    PreparedStatement ps = null;
+    private DatabaseSession database;
+    private EmployeeDao employeeDao;
+    private DeductionDao deductionDao;
+    private final PayrollCalculator calculator = new PayrollCalculator();
+
     /**
      * Creates new form Deduction
      */
     public Deduction() {
         initComponents();
-        con = DatabaseHelper.getConnection(); 
+        database = new DatabaseSession();
+        employeeDao = new EmployeeDao(database);
+        deductionDao = new DeductionDao(database);
         Toolkit toolkit = getToolkit();
         Dimension size = toolkit.getScreenSize();
         setLocation(size.width/2 - getWidth()/2, size.height/2 - getHeight()/2);
@@ -406,42 +413,39 @@ public class Deduction extends javax.swing.JFrame {
 
     private void txtsearchKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtsearchKeyReleased
         try {
-            String sql = "select * from employee where emp_id=?";
-             ps = con.prepareStatement(sql);
-             ps.setString(1, txtsearch.getText());
-             rs=ps.executeQuery();
-             if (rs.next()){
-             String add1 = rs.getString("emp_id");
+            Employee employee = employeeDao.findById(txtsearch.getText());
+            if (employee != null) {
+             String add1 = employee.getId();
              txtid.setText(add1);
              
-             String add2 = rs.getString("f_name");
+             String add2 = employee.getFirstName();
              txtfn.setText(add2);
              
-             String add3 = rs.getString("l_name");
+             String add3 = employee.getLastName();
              txtln.setText(add3);
                         
-             String add5 = rs.getString("dob");
+             String add5 = employee.getDateOfBirth();
              txtdob.setText(add5);
                                       
-             String add12 = rs.getString("dept");
+             String add12 = employee.getDepartment();
              txtdep.setText(add12); 
              
-             String add15 = rs.getString("salary");
+             String add15 = employee.getSalary();
              txtsal.setText(add15);
              
-             String add4 = rs.getString("designation");
+             String add4 = employee.getDesignation();
              txtdes.setText(add4);
              
-             String add6 = rs.getString("status");
+             String add6 = employee.getStatus();
              txtsta.setText(add6);
              
-             String add7 = rs.getString("date_hire");
+             String add7 = employee.getDateHired();
              txthire.setText(add7);
              
-             String add8 = rs.getString("job_t");
+             String add8 = employee.getJobTitle();
              txtjob.setText(add8);
              
-             String add9 = rs.getString("salary");
+             String add9 = employee.getSalary();
              txtsal.setText(add9);
              }
              
@@ -449,8 +453,7 @@ public class Deduction extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(null, e);
         }finally{
             try {
-                rs.close();
-                ps.close();
+                database.closeResults();
             } catch (Exception e) {
                   JOptionPane.showMessageDialog(null, e);
             }
@@ -477,19 +480,14 @@ public class Deduction extends javax.swing.JFrame {
 
     private void btnSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveActionPerformed
         try {
-            String sql = "insert into deduction"
-                    +"(emp_id, f_name, l_name, salary, deduct_amount,"
-                    + "deduct_reason) values (?,?,?,?,?,?)";
-            ps = con.prepareStatement(sql);
-            ps.setString(1, txtid.getText());
-            ps.setString(2, txtfn.getText());
-            ps.setString(3, txtln.getText());
-            ps.setString(4, txtsal.getText());
-            ps.setString(5, lblTotal.getText());
-            ps.setString(6, txtReason.getText());
-            
-            ps = con.prepareStatement(sql);
-            ps.execute();
+            DeductionData deduction = new DeductionData();
+            deduction.setEmployeeId(txtid.getText());
+            deduction.setFirstName(txtfn.getText());
+            deduction.setLastName(txtln.getText());
+            deduction.setSalary(txtsal.getText());
+            deduction.setAmount(lblTotal.getText());
+            deduction.setReason(txtReason.getText());
+            deductionDao.save(deduction);
             JOptionPane.showMessageDialog(null, "Data is saved successfully");
         } catch (Exception e) {
         }
@@ -500,16 +498,16 @@ public class Deduction extends javax.swing.JFrame {
             if(rpercent.isSelected()==true){
             int getpercent = Integer.parseInt(txtpercent.getText());
             //calculation the total hour Overtime
-            int calpercent = salary - salary / 100 * getpercent;
+            int calpercent = calculator.deductByPercent(salary, getpercent);
             String x = String.valueOf(calpercent);
-            int sal = salary - calpercent;
+            int sal = calculator.deductionAmount(salary, calpercent);
             lblSalary.setText(x);
             lblTotal.setText(String.valueOf(sal));
             }
             
             if(ramount.isSelected()==true){
             int deduction = Integer.parseInt(txtamount.getText());
-            int calAmt = salary - deduction;
+            int calAmt = calculator.deductByAmount(salary, deduction);
             String s = String.valueOf(calAmt);
             lblSalary.setText(s);
             lblTotal.setText(String.valueOf(deduction));}
