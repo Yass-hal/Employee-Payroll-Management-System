@@ -1,11 +1,13 @@
 package employee_payroll;
 
-import DAO.DatabaseHelper;
+import DAO.DatabaseSession;
+import DAO.EmployeeDao;
+import model.Employee;
+import DAO.SalaryDao;
+import logic.PayrollCalculator;
+
 import java.awt.Dimension;
 import java.awt.Toolkit;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import javax.swing.JOptionPane;
 
 /*
@@ -19,16 +21,20 @@ import javax.swing.JOptionPane;
  * @author ZI Zohir
  */
 public class UpdateSalary extends javax.swing.JFrame {
+    private DatabaseSession database;
+    private EmployeeDao employeeDao;
+    private SalaryDao salaryDao;
+    private final PayrollCalculator calculator = new PayrollCalculator();
 
-    Connection con = null;
-    ResultSet rs = null;
-    PreparedStatement ps = null;
+
     /**
      * Creates new form UpdateSalary
      */
     public UpdateSalary() {
         initComponents();
-        con = DatabaseHelper.getConnection(); 
+        database = new DatabaseSession();
+        employeeDao = new EmployeeDao(database);
+        salaryDao = new SalaryDao(database);
         Toolkit toolkit = getToolkit();
         Dimension size = toolkit.getScreenSize();
         setLocation(size.width/2 - getWidth()/2, size.height/2 - getHeight()/2);
@@ -291,27 +297,24 @@ public class UpdateSalary extends javax.swing.JFrame {
 
     private void txtsearchKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtsearchKeyReleased
         try {
-            String sql = "select * from employee where emp_id=?";
-             ps = con.prepareStatement(sql);
-             ps.setString(1, txtsearch.getText());
-             rs=ps.executeQuery();
-             if (rs.next()){
-             String add1 = rs.getString("emp_id");
+            Employee employee = employeeDao.findById(txtsearch.getText());
+            if (employee != null) {
+             String add1 = employee.getId();
              txtid.setText(add1);
              
-             String add2 = rs.getString("f_name");
+             String add2 = employee.getFirstName();
              txtfn.setText(add2);
              
-             String add3 = rs.getString("l_name");
+             String add3 = employee.getLastName();
              txtln.setText(add3);
                         
-             String add5 = rs.getString("dob");
+             String add5 = employee.getDateOfBirth();
              txtdob.setText(add5);
              
-             String add15 = rs.getString("salary");
+             String add15 = employee.getSalary();
              txtsal.setText(add15);
              
-             String add12 = rs.getString("dept");
+             String add12 = employee.getDepartment();
              txtdept.setText(add12); 
              }
              
@@ -319,8 +322,7 @@ public class UpdateSalary extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(null, e);
         }finally{
             try {
-                rs.close();
-                ps.close();
+                database.closeResults();
             } catch (Exception e) {
                   JOptionPane.showMessageDialog(null, e);
             }
@@ -331,12 +333,12 @@ public class UpdateSalary extends javax.swing.JFrame {
             int salary = Integer.parseInt(txtsal.getText());
             if(rpercent.isSelected()==true){
             int getpercent = Integer.parseInt(txtpercent.getText());
-            int calpercent = salary / 100 * getpercent + salary;
+            int calpercent = calculator.increaseByPercent(salary, getpercent);
             String xP = String.valueOf(calpercent);
             txtsal.setText(xP);
             }else if(ramount.isSelected()==true){
             int getAmt = Integer.parseInt(txtamount.getText());
-            int calAmt = salary + getAmt;
+            int calAmt = calculator.increaseByAmount(salary, getAmt);
             String xA = String.valueOf(calAmt);
             txtsal.setText(xA);}
         
@@ -344,17 +346,13 @@ public class UpdateSalary extends javax.swing.JFrame {
             String value1 = txtid.getText();
             String value2 = txtsal.getText();
             
-            String sql ="update employee set emp_id = '"+value1+"',Salary = '"
-                    +value2+"'where emp_id = '"+value1+"'   ";
-            ps = con.prepareStatement(sql);
-            ps.execute();
+            salaryDao.update(value1, value2);
             JOptionPane.showMessageDialog(null, "Record Updated");
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, e);
         }finally{
             try {
-                rs.close();
-                ps.close();
+                database.closeResults();
             } catch (Exception e) {
                   JOptionPane.showMessageDialog(null, e);
             }
